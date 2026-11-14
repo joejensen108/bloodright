@@ -1,6 +1,8 @@
+<!doctype html>
+<html lang="en"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Bloodright: Chapter 1</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><title>Bloodright: Chapter 1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap">
 <style>
@@ -6853,6 +6855,16 @@ window.__crit=()=>typeof CRIT!=='undefined'?CRIT:[];
 {const st=document.createElement('style');st.textContent='#pad .tb[data-a=mend]{right:14px!important;bottom:168px!important}#pad .tb[data-a=pull]{right:150px!important;bottom:196px!important}';document.head.appendChild(st)}
 
 
+// ==== 42_nozoom.js
+// v204: rapid taps on iPhone Safari zoomed the page in (double-tap / pinch), with no way back out. Page zoom is locked off.
+{const m=document.querySelector('meta[name=viewport]');if(m)m.content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+ const st=document.createElement('style');st.textContent='html,body{touch-action:manipulation;-webkit-text-size-adjust:100%}#pad,#pad *,canvas{touch-action:none}';document.head.appendChild(st);
+ for(const ev of ['gesturestart','gesturechange','gestureend'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
+ let lastT=0;document.addEventListener('touchend',e=>{const now=Date.now();if(now-lastT<350&&!(e.target.closest&&e.target.closest('textarea,input,select')))e.preventDefault();lastT=now},{passive:false});
+ document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
+ document.addEventListener('touchmove',e=>{if(e.touches&&e.touches.length>1)e.preventDefault()},{passive:false})}
+
+
 // ==== 45_duelsteps.js
 // v199: sparring/duel fighters (Soren, Sloane, Orion...) take real steps whenever they move.
 // Before, slow moves (circling, closing in) under 30 px/s kept the idle frame, so they slid across the ground.
@@ -7178,3 +7190,5 @@ renderMine();
 
 </script>
 
+
+</html>
