@@ -1761,9 +1761,9 @@ function lightingPass(c){const lw=Math.ceil(vw/3),lh=Math.ceil(vh/3);if(LC.width
   // additive glow from the same lights, so fire actually brightens the ground
   c.globalCompositeOperation='lighter';for(const L of LIGHTS){const x=(L.x-camX)*S,y=(L.y-camY)*S,r=L.r*S*.7;if(x<-r||y<-r||x>vw+r||y>vh+r)continue;const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,rgba(L.col,.22*L.a));g.addColorStop(1,rgba(L.col,0));c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2)}
   // bloom: a small blurred copy of the frame added back on top
-  const bw=Math.ceil(vw/8),bh=Math.ceil(vh/8);if(BC.width!==bw||BC.height!==bh){BC.width=bw;BC.height=bh}
+  if(!window.__noBloom){const bw=Math.ceil(vw/8),bh=Math.ceil(vh/8);if(BC.width!==bw||BC.height!==bh){BC.width=bw;BC.height=bh}
   BG.globalCompositeOperation='source-over';BG.imageSmoothingEnabled=true;BG.drawImage(cv,0,0,bw,bh);BG.globalCompositeOperation='multiply';BG.fillStyle='#8a8a8a';BG.fillRect(0,0,bw,bh);
-  c.globalCompositeOperation='screen';c.globalAlpha=.22;c.drawImage(BC,0,0,vw,vh);c.globalAlpha=1;
+  c.globalCompositeOperation='screen';c.globalAlpha=.22;c.drawImage(BC,0,0,vw,vh);c.globalAlpha=1;}
   // warm sun grade + white flash
   c.globalCompositeOperation='soft-light';c.fillStyle=wild?'rgba(120,60,160,.35)':'rgba(255,190,120,.28)';c.fillRect(0,0,vw,vh);
   c.globalCompositeOperation='source-over';if(FLASHWHITE>0){c.fillStyle=`rgba(255,250,235,${FLASHWHITE})`;c.fillRect(0,0,vw,vh);FLASHWHITE=Math.max(0,FLASHWHITE-.02)}
@@ -6858,9 +6858,8 @@ window.__crit=()=>typeof CRIT!=='undefined'?CRIT:[];
 // ==== 42_nozoom.js
 // v204: rapid taps on iPhone Safari zoomed the page in (double-tap / pinch), with no way back out. Page zoom is locked off.
 {const m=document.querySelector('meta[name=viewport]');if(m)m.content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
- const st=document.createElement('style');st.textContent='html,body{touch-action:manipulation;-webkit-text-size-adjust:100%}#pad,#pad *,canvas{touch-action:none}';document.head.appendChild(st);
+ const st=document.createElement('style');st.textContent='html,body{touch-action:none;-webkit-text-size-adjust:100%}#tnAll,#tnMine,#tnTxt{touch-action:pan-y}';document.head.appendChild(st);
  for(const ev of ['gesturestart','gesturechange','gestureend'])document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
- let lastT=0;document.addEventListener('touchend',e=>{const now=Date.now();if(now-lastT<350&&!(e.target.closest&&e.target.closest('textarea,input,select')))e.preventDefault();lastT=now},{passive:false});
  document.addEventListener('dblclick',e=>e.preventDefault(),{passive:false});
  document.addEventListener('touchmove',e=>{if(e.touches&&e.touches.length>1)e.preventDefault()},{passive:false})}
 
@@ -6910,6 +6909,13 @@ window.__npcs=()=>NPCS;
 try{window.__jumps=JUMPS}catch(e){}
 // test hook: last frame/position drawn per sprite sheet image
 window.__dj={};{const _djA=drawJ;drawJ=function(c,S,f,x,y,...r){try{if(S&&S.img){const k=(S.img.src||'').split('/').pop();const o=window.__dj[k]||(window.__dj[k]={n:0});if(o.t!==time){o.n=0}o.n++;o.f=f;o.x=x;o.y=y;o.t=time;o.st=P&&P.st;o.z=ZN.cur;o.mode=mode}}catch(e){}return _djA(c,S,f,x,y,...r)}}
+
+
+// ==== 61_prof.js
+// test-only timing hook (cheap): time spent in update and render per frame
+window.__pf={u:0,r:0,n:0};{const _uP=update;update=function(dt){const t=performance.now();_uP(dt);window.__pf.u+=performance.now()-t}}
+{const _rP=render;render=function(){const t=performance.now();_rP();window.__pf.r+=performance.now()-t;window.__pf.n++}}
+window.__inp=()=>({stick:[+stick.x.toFixed(2),+stick.y.toFixed(2)],held:Object.keys(touchHeld).filter(k=>touchHeld[k]),moving:!!(P&&P.moving)});
 
 
 // ==== 70_memdeath.js
@@ -6972,18 +6978,25 @@ function ambFor(z){if(AMB2[z]!==undefined)return AMB2[z];if(z==='dojo')return AM
   const gl=[];for(let n=0;n<400&&gl.length<70;n++){const i=Math.floor(Math.random()*N*N);if(W2[i])gl.push({x:o.x+((i%N)+Math.random())*AMB_C*k,y:o.y+(Math.floor(i/N)+Math.random())*AMB_C*k,ph:Math.random()*TAU,sp:.6+Math.random()*1.2})}
   return AMB2[z]={N,k,o,w,f,gl,W2,F2}}
 let AMB_ON=true;
-// draw each run of water / foliage cells again, nudged sideways by a slow wave (no clipping: cheap on phones)
-function ambRuns(c,A,rows,amp,speed,fy,fx){const t=time,cs=A.k*AMB_C,j0=Math.max(0,Math.floor((camY-A.o.y)/cs)),j1=Math.min(A.N-1,Math.ceil((camY+VHw-A.o.y)/cs)),i0=Math.floor((camX-A.o.x)/cs),i1=Math.ceil((camX+VWw-A.o.x)/cs);
-  for(let j=j0;j<=j1;j++){const R=rows[j];if(!R.length)continue;const y=A.o.y+j*cs;
-    for(let q=0;q<R.length;q+=2){let a=R[q],e=R[q+1];if(e<i0||a>i1)continue;
-      const off=Math.sin(t*speed+j*fy+a*fx)*amp+Math.sin(t*speed*.47+j*fy*2.1+1.3)*amp*.4;
-      const x=A.o.x+a*cs,w=(e-a)*cs;if(x<0||y<0||(x+w)>W||(y+cs)>H)continue;c.drawImage(bg,x*GS,y*GS,w*GS,cs*GS,x+off,y,w,cs)}}}
+// v205: faster. Water and foliage are cut out once into their own images, then redrawn as a few full-width strips per frame
+// (like the older water layer), instead of hundreds of small pieces. About a tenth of the drawing work.
+function ambMask(A,cells){if(!cells)return null;const im=ZN.img[ZN.cur],N=1254;
+  const c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d');g.drawImage(im,0,0,N,N);
+  g.globalCompositeOperation='destination-in';g.beginPath();const lo=new Int16Array(N).fill(N),hi=new Int16Array(N).fill(-1);
+  for(let j=0;j<A.N;j++){const R=cells[j];for(let q=0;q<R.length;q+=2){const x0=R[q]*AMB_C,x1=R[q+1]*AMB_C;g.rect(x0,j*AMB_C,x1-x0,AMB_C);
+    for(let y=j*AMB_C;y<Math.min(N,(j+1)*AMB_C);y++){if(x0<lo[y])lo[y]=x0;if(x1>hi[y])hi[y]=x1}}}
+  g.fill();c.lo=lo;c.hi=hi;return c}
+function ambStrips2(c,img,h,amp,speed,fy){if(!img)return;const k=ZK,t=time,iy0=Math.max(0,Math.floor(camY/k)-4),iy1=Math.min(1254,Math.ceil((camY+VHw)/k)+4),ix0=Math.max(0,Math.floor((camX-ZX)/k)-6),ix1=Math.min(1254,Math.ceil((camX+VWw-ZX)/k)+6);
+  for(let y=iy0-(iy0%h);y<iy1;y+=h){const hh=Math.min(h,1254-y);let a=1254,b=-1;for(let j=y;j<y+hh;j++){if(img.lo[j]<a)a=img.lo[j];if(img.hi[j]>b)b=img.hi[j]}
+    a=Math.max(a-2,ix0);b=Math.min(b+2,ix1);if(b<=a)continue;const dx=(Math.sin(t*speed+y*fy)*amp+Math.sin(t*speed*.47+y*fy*2.1+1.3)*amp*.4)/k;
+    c.drawImage(img,a,y,b-a,hh,ZX+(a+dx)*k,y*k,(b-a)*k,hh*k+.4)}}
 {const _dwA=drawWater;drawWater=function(c){_dwA(c);if(!AMB_ON||!ZN.on||!ZN.cur)return;const A=ambFor(ZN.cur);if(!A)return;
-  if(A.w){c.save();ambRuns(c,A,A.w,1.4,1.7,.55,.04);
+  if(A.mw===undefined){A.mw=ambMask(A,A.w);A.mf=ambMask(A,A.f)}
+  c.save();if(A.mw){ambStrips2(c,A.mw,4,1.3,1.7,.09);
     c.globalCompositeOperation='lighter';for(const s of A.gl){if(s.x<camX-4||s.x>camX+VWw+4||s.y<camY-4||s.y>camY+VHw+4)continue;const v=Math.sin(time*s.sp*2+s.ph);if(v<.55)continue;const a=(v-.55)*1.6;
       c.fillStyle=`rgba(230,250,255,${a*.55})`;c.fillRect(s.x-1.6,s.y-.35,3.2,.7)}
-    c.restore()}
-  if(A.f)ambRuns(c,A,A.f,1.15,1.2,.09,.11);}}
+    c.globalCompositeOperation='source-over'}
+  if(A.mf)ambStrips2(c,A.mf,6,1.1,1.2,.016);c.restore()}}
 window.__amb={get:z=>ambFor(z||ZN.cur),off:()=>{AMB_ON=false},on:()=>{AMB_ON=true}};
 
 
@@ -7061,6 +7074,34 @@ let NOGRASS=false;{const _goB=grassOver;grassOver=function(c,x,y){if(NOGRASS)ret
 {const _uIS=update;update=function(dt){const A=C1.isenA;_uIS(dt);if(!P||!C1.mem||C1.mem.kind!=='first'){C1.isenA=null;return}
   const fight=boss&&boss.memB&&!boss.dead&&!C1.cut;if(!fight){C1.isenA=null;return}
   if(!A){C1.isenA={x:P.x,y:P.y};return}P.x=A.x;P.y=A.y;P.dvx=P.dvy=0;P.moving=false}}
+
+
+// ==== 98_perf.js
+// v205: phones that can't keep up turn effects down by themselves, instead of the whole game slowing and feeling sticky.
+// Measured every ~1.5 s of play: if frames run slower than ~48 per second, the next most expensive effect is switched off.
+//  step 1: the swaying water/foliage layer  step 2: the soft bloom glow  step 3: draw at 1.5x instead of 2x  step 4: 1.25x
+const QG={lv:0,acc:0,n:0,cool:0};
+function qApply(){if(QG.lv>=1)AMB_ON=false;if(QG.lv>=2)window.__noBloom=true;if(QG.lv>=3)resize()}
+{const _rzQ=resize;resize=function(){_rzQ();const cap=QG.lv>=4?1.25:QG.lv>=3?1.5:9;if(dpr>cap){dpr=cap;cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);RS=clamp(Math.ceil(S*dpr),2,6)}}}
+{let lt=0;const tick=now=>{requestAnimationFrame(tick);const d=now-lt;lt=now;if(!d||d>250||document.hidden)return;
+  if(mode!=='play'&&mode!=='dialog'&&mode!=='cut'){QG.acc=QG.n=0;return}
+  QG.acc+=d;QG.n++;if(QG.acc<1500)return;const avg=QG.acc/QG.n;QG.acc=QG.n=0;
+  if(QG.cool>0){QG.cool--;return}
+  if(avg>21&&QG.lv<4){QG.lv++;qApply();QG.cool=1;try{localStorage.setItem('br_q',String(QG.lv))}catch(e){}}};requestAnimationFrame(tick)}
+try{const v=+localStorage.getItem('br_q');if(v>0&&v<=4){QG.lv=v;setTimeout(qApply,0)}}catch(e){}
+window.__q={get lv(){return QG.lv},set:n=>{QG.lv=n;AMB_ON=n<1;window.__noBloom=n>=2;resize()}};
+
+// v205: touch controls never get stuck held. Any finger lifted anywhere releases what that finger was pressing,
+// and lifting every finger (or leaving the app) releases everything, the stick included.
+{const owner={};let stickId=null;const z=document.getElementById('stickZone');
+ const relA=a=>{touchHeld[a]=false;const b=document.querySelector('.tb[data-a='+a+']');if(b)b.classList.remove('on');delete owner[a]};
+ const relStick=()=>{if(stickId==null||!z)return;const id=stickId;stickId=null;try{z.dispatchEvent(new PointerEvent('pointerup',{pointerId:id,bubbles:false}))}catch(e){}stick.x=stick.y=0};
+ addEventListener('pointerdown',e=>{const b=e.target.closest&&e.target.closest('.tb');if(b&&b.dataset.a)owner[b.dataset.a]=e.pointerId;if(z&&e.target.closest&&e.target.closest('#stickZone'))stickId=e.pointerId},true);
+ const up=e=>{for(const a in owner)if(owner[a]===e.pointerId)relA(a);if(e.pointerId===stickId)relStick()};
+ addEventListener('pointerup',up,true);addEventListener('pointercancel',up,true);
+ const all=()=>{for(const a in touchHeld)if(touchHeld[a])relA(a);relStick()};
+ addEventListener('touchend',e=>{if(!e.touches||e.touches.length===0)all()},{passive:true});addEventListener('touchcancel',e=>{if(!e.touches||e.touches.length===0)all()},{passive:true});
+ addEventListener('blur',all);document.addEventListener('visibilitychange',()=>{if(document.hidden)all()})}
 
 
 // ==== 99_title.js
